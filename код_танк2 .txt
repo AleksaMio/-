@@ -1,0 +1,214 @@
+#include <IRremote.h>
+#include "Servo.h"
+
+int laser=10;
+int RECV_PIN = 22; //переменная для приема ик 
+int g1=24;
+int g2=26;
+int g3=28;
+int r1=30;
+int count=0;  //переменная для запоминания что считали с ик приемника
+int svet=0;   // какой свет выклчать
+
+IRrecv irrecv(RECV_PIN);
+decode_results results;
+
+// первый двигатель левый
+int enA = 7;
+int enAs=50;//начальная скорость
+int in1 = 3;
+int in2 = 4;
+// второй двигатель правый
+int enB = 2;
+int enBs=50;//начальная скорость
+int in3 = 5;
+int in4 = 6;
+
+String val="";//переменная для получения данных с блюпупа
+
+//int sv=13;
+Servo verhnis;
+Servo levopravo;
+int h_s=90;//градус поворота по горизонтали
+int v_s=5;//градус поворота по вертикали
+
+void setup() 
+{
+  Serial.begin(9600);
+  irrecv.enableIRIn();//запуск приёмника
+  pinMode(laser, OUTPUT);
+  pinMode(4,OUTPUT);
+  pinMode(5,OUTPUT);
+  pinMode(6,OUTPUT);
+  pinMode(7,OUTPUT);
+  digitalWrite(4,HIGH);
+  digitalWrite(5,HIGH);
+  digitalWrite(6,HIGH);
+
+  
+//pinMode(13, OUTPUT);
+// инициализируем все пины для управления двигателями как outputs
+  pinMode(enA, OUTPUT);
+  pinMode(enB, OUTPUT);
+  pinMode(in1, OUTPUT);
+  pinMode(in2, OUTPUT);
+  pinMode(in3, OUTPUT);
+  pinMode(in4, OUTPUT);
+//digitalWrite(13,HIGH);
+//пины сервиков
+ levopravo.attach(31); levopravo.write(h_s);//горизонтальный сервик
+ verhnis.attach(33); verhnis.write(v_s);//вертикальный сервик
+ 
+}
+
+void loop() {
+  
+   if (irrecv.decode(&results)) 
+   {
+    count++;
+    Serial.println(results.value);
+    irrecv.resume(); // Готовы принимать следующее значение
+    
+   }
+   if(count==1)
+   {
+     if(svet==0)
+     {
+        digitalWrite(4,LOW);
+      
+     }
+     if(svet==1)
+     {
+        digitalWrite(5,LOW);
+      
+     }
+     if(svet==2)
+     {
+        digitalWrite(6,LOW);
+      
+     }
+     svet++;
+   }
+    if(svet==3)
+    {
+      digitalWrite(7,HIGH);
+      delay(100);
+      digitalWrite(7,LOW);
+      delay(50);
+      digitalWrite(4,HIGH);
+      digitalWrite(5,HIGH);
+      digitalWrite(6,HIGH);
+      svet=0;
+    }
+    count=0;
+
+
+//получение данных с блюпупа
+    while (Serial.available()) //пока приходят данные
+    { 
+      char c = Serial.read();    //считываем их
+      val += c;                  //и формируем строку
+      delay(3);
+   }
+   if (val == "boom") //выстрел
+   {
+     digitalWrite(laser,HIGH);
+     delay(1000);
+     digitalWrite(laser,LOW);
+   }
+   if (val=="stop")//остановка двигателей
+   {
+     digitalWrite(in1, LOW);
+     digitalWrite(in2, LOW);
+     digitalWrite(in3, LOW);
+     digitalWrite(in4, LOW);
+   }
+   if(val=="s1")//скорость1
+   {
+      enAs=100;
+      enBs=100;
+      analogWrite(enA, enAs);
+      analogWrite(enB, enBs);
+   }
+   if(val=="s2")//скорость2
+   {
+      enAs=150;
+      enBs=150;
+      analogWrite(enA, enAs);
+      analogWrite(enB, enBs);
+   }
+
+   if(val=="s3")//скорость3
+   {
+      enAs=220;
+      enBs=220;
+      analogWrite(enA, enAs);
+      analogWrite(enB, enBs);
+   }
+   if(val=="dv_left")//поворот влево
+   {
+      analogWrite(enA, enAs-15);
+      delay(50);
+      analogWrite(enA, enAs);
+   }
+   if(val=="dv_right")//поворот вправо
+   {
+      analogWrite(enB, enBs-15);
+      delay(50);
+      analogWrite(enB, enBs);
+   }
+   if(val=="dv_up")//движение вперёд
+   {
+      digitalWrite(in1, HIGH);
+      digitalWrite(in2, LOW);
+
+      digitalWrite(in3, HIGH);
+      digitalWrite(in4, LOW);
+   }
+   if(val=="dv_down")//движение назад
+   {
+      digitalWrite(in1, LOW);
+      digitalWrite(in2, HIGH);
+
+      digitalWrite(in3, LOW);
+      digitalWrite(in4, HIGH);
+   }
+   if(val=="s_left")//сервик влево
+   {
+      if(h_s>6)//сервик предельный угол влево
+      {
+          levopravo.write(h_s-2);
+          h_s=h_s-2;
+      }
+    }
+
+    if(val=="s_right") //сервик вправо
+    {
+      if(h_s<174) //сервик предельный угол вправо
+      {
+          levopravo.write(h_s+2);
+          h_s=h_s+2;
+      }
+    }
+
+    if(val=="s_up")  //сервик вверх
+    {
+      if(v_s<90)  //сервик предельный угол вверх
+      {
+        verhnis.write(v_s+2);
+        v_s=v_s+2;
+      }
+    }
+
+    if(val=="s_down")  //сервик вниз
+    {
+      if(v_s>6)  //сервик предельный угол вниз
+      {
+        verhnis.write(v_s-2);
+        v_s=v_s-2;
+      }
+    }
+
+    val = "";   //занулям строку
+
+}
